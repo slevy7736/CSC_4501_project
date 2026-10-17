@@ -66,9 +66,19 @@ def load_topology(path: str | Path) -> nx.Graph:
       3. the graph is connected
     """
     # TODO 1:
+
     # - Read the JSON file.
+    with open('./student/data/topology.json') as f:
+        topology = json.load(f)
+
     # - Add all nodes.
+    for node in topology['nodes']:
+        print(node)
+
     # - Add all links with delay_ms, success_prob, and capacity.
+    for link in topology['links']:
+        print(link)
+    
     # - Validate the link values and graph connectivity.
     raise NotImplementedError("Complete Task 1")
 
