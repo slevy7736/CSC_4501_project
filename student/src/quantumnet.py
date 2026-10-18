@@ -87,16 +87,16 @@ def load_topology(path: str | Path) -> nx.Graph:
         )
 
     # validate success_prob (pe)
-    for link, pe in G.edges.data('pe'):
+    for u, v, pe in G.edges.data('pe'):
         if not(0 < pe and pe <= 1):
-            print("invalid success probability:", pe)
+            print("invalid success probability:", pe, "for link", u, ",", v)
             print("valid probability values are between 0 and 1")
             print()
 
     # validate link capacity (ce)
-    for link, ce in G.edges.data('ce'):
-        if not(pe >= 1):
-            print("invalid link capacity:", pe)
+    for u, v, ce in G.edges.data('ce'):
+        if not(ce >= 1):
+            print("invalid link capacity:", ce, "for link", u, ",", v)
             print("valid link capacities are greater than 1")
             print()
 
