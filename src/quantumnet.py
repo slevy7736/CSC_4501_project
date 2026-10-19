@@ -101,7 +101,20 @@ def load_topology(path: str | Path) -> nx.Graph:
             print()
 
     # validate that the graph is connected
-    # 
+    # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.is_connected.html#networkx.algorithms.components.is_connected
+    
+        # "A graph is connected if, for every pair of distinct nodes,
+        # there is a path between them. If there is a pair of nodes
+        # for which such path does not exist, the graph is not connected
+        # (also referred to as “disconnected”)"
+        
+        validate_connected = nx.is_connected(G)
+        if validate_connected == True:
+             print("graph is connected")
+             print()
+        else:
+             print("graph is NOT connected")
+             print()
             
     return G
 
