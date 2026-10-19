@@ -1,8 +1,8 @@
 # CSC_4501_project
 
 ## TODO
-- cut out middle man (folder named "student") so original relative paths work (move everything inside student into "CSC_4501_project" and delete folder named "student")
 - Task 1
+  - fix wack file permissions issue (test2 has the topology image in the root directory, but ideally it should be in outputs since that's what main is supposed to do, but that's not possible because no write permissions for output folder!!!)
   - implement graph connectivity checking
   - when calling the helper function for drawing the graph, fix the file permissions so that the image file gets sent to outputs instead of the source directory (???)
 - Task 2
