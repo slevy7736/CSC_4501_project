@@ -145,9 +145,9 @@ def draw_topology(g: nx.Graph, output_path: str | Path) -> None:
     plt.savefig(output_path, dpi=240, bbox_inches="tight")
     plt.close()
 
-graph = load_topology('student/data/topology.json')
-#draw_topology(graph, './student/outputs/topology.png')         # why can't I get permission to write to /student/outputs????
-draw_topology(graph, 'topology.png')
+graph = load_topology('../data/topology.json')                  # this also happens in main
+# draw_topology(graph, '../outputs/topology.png')               # why can't I get permission to write to /student/outputs????
+draw_topology(graph, '../topology.png')
 
 # ============================================================
 # TASK 2 — Generate network traffic [10 points]
