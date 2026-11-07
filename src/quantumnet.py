@@ -108,13 +108,14 @@ def load_topology(path: str | Path) -> nx.Graph:
         # for which such path does not exist, the graph is not connected
         # (also referred to as “disconnected”)"
         
-        validate_connected = nx.is_connected(G)
-        if validate_connected == True:
-             print("graph is connected")
-             print()
-        else:
-             print("graph is NOT connected")
-             print()
+    validate_connected = nx.is_connected(G)
+    
+    if validate_connected == True:
+        print("graph is connected")
+        print()
+    else:
+        print("graph is NOT connected")
+        print()
             
     return G
 
@@ -158,9 +159,13 @@ def draw_topology(g: nx.Graph, output_path: str | Path) -> None:
     plt.savefig(output_path, dpi=240, bbox_inches="tight")
     plt.close()
 
-graph = load_topology('../data/topology.json')                  # this also happens in main
+# graph = load_topology('../data/topology.json')                  # this also happens in main
 # draw_topology(graph, '../outputs/topology.png')               # why can't I get permission to write to /student/outputs????
-draw_topology(graph, '../topology.png')
+# draw_topology(graph, '../topology.png')
+
+# graph is not connected
+test_graph = load_topology('../data/topology_test.json')
+draw_topology(test_graph, '../topology_test.png')
 
 # ============================================================
 # TASK 2 — Generate network traffic [10 points]
@@ -183,6 +188,28 @@ def generate_requests(
 
     Source and destination must be different.
     """
+
+    requests = []                                                   # function expects a list to be returned, "requests" is that list
+
+    id = 0
+    arrival_ms = 0                                                  # time the request arrives
+
+    while id < n_requests:
+        # two non-repeating random samples from g.nodes
+        srcdst = rng.sample(list(g.nodes), k = 2)
+        arrival_ms += rng.expovariate(arrival_rate_per_ms)          # requests are generated in order of arrival time so arrival time increments with each request
+
+        requests.append(
+            Request(
+                request_id = id,
+                arrival_ms = arrival_ms,
+                src = srcdst[0],
+                dst = srcdst[1]
+            )
+        )
+        id = id +1
+    return requests
+
     # TODO 2
     raise NotImplementedError("Complete Task 2")
 
