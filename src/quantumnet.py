@@ -218,6 +218,9 @@ def generate_requests(
 # TASK 3 — Implement routing policies [30 points]
 # ============================================================
 
+# determines how a given edge gets its weight depending on which policy is passed as the arg
+# dijkstra's algorithm finds the path with the LOWEST total accumulated weight
+
 def edge_weight(
     policy: str,
     attrs: dict,
@@ -247,20 +250,57 @@ def edge_weight(
 
     if policy == "shortest_hop":
         # TODO 3A
+
+        # every link has weight of 1
+        # dijkstra's algorithm chooses the path with the least amount of links
+
+        return 1
+
         raise NotImplementedError("Complete Task 3A")
 
     if policy == "min_latency":
         # TODO 3B
+
+        # every link's weight is its (the link's) delay (de)
+        # dijkstra's algorithm chooses the path with the least amount of overall delay
+
+        return delay                                        # delay = "delay", line 247
+
         raise NotImplementedError("Complete Task 3B")
 
     if policy == "max_reliability":
         # TODO 3C
+
+        # dijkstra's algorithm computes a sum,
+        # however the most reliable path = highest pe * pe * pe ... * pe
+
         # Hint: logarithms convert products into sums.
+        # i.e., log(a * b) = log(a) + log(b)
+
+        # therefore link's weight = -math.log(pe)
+        # ^ negated because we want links with HIGHER reliability to have LOWER weights
+        # and negative numbers with bigger magnitude are overall "smaller"
+
+        return math.log(p)                                 # probability = "p", line 248
+
         raise NotImplementedError("Complete Task 3C")
 
     if policy == "student_policy":
         # TODO 3D
         # Use at least TWO of: delay, p, capacity.
+
+        # if there's high capacity and low delay,
+        # we can send a lot of data with minimal delay
+        # and brute force our way through low success probability
+
+        # higher capacities --> lower quotients for (1/capacity)
+        # higher delays --> contribute more to (delay + (1/capacity)) 
+        return delay + (1/capacity)
+
+        # for this policy we expect more losses than other policies,
+        # but for successful tranmissions, faster delivery
+        # of the *entire* payload, not just one segment
+ 
         raise NotImplementedError("Complete Task 3D")
 
     raise ValueError(f"Unknown policy: {policy}")
@@ -274,8 +314,21 @@ def choose_path(
     alpha: float = 1.0,
     beta: float = 15.0,
 ) -> List[str]:
+
     """Select a path using Dijkstra's algorithm and edge_weight(...)."""
     # TODO 3E
+
+    def weight_func(src, dst, attrs):                               # the weight of a given link is the result of...
+        return edge_weight(policy, attrs, alpha, beta)              # calling edge_weight w/given args
+
+    # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.dijkstra_path.html#dijkstra-path
+    path = nx.dijkstra_path(g, src, dst, weight=weight_func)
+    # weight_func() means call the function now, without supplying the required arguments
+    # weight_func means pass the function itself to NetworkX
+    #       - NetworkX will call weight_func(src, dst, attrs) as it examines each edge
+
+    return path
+
     raise NotImplementedError("Complete Task 3E")
 
 
