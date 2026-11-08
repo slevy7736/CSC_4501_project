@@ -276,12 +276,12 @@ def edge_weight(
 
         # Hint: logarithms convert products into sums.
         # i.e., log(a * b) = log(a) + log(b)
+        # but we want high success probability to be represented by a SMALLER number,
+        # try: -(log(a) + log(b)).
+        # But how do we do this on a per weight basis? distribute the -:
+        # (-log(a)) + (-log(b))
 
-        # therefore link's weight = -math.log(pe)
-        # ^ negated because we want links with HIGHER reliability to have LOWER weights
-        # and negative numbers with bigger magnitude are overall "smaller"
-
-        return math.log(p)                                 # probability = "p", line 248
+        return -math.log(p)                                 # probability = "p", line 248
 
         raise NotImplementedError("Complete Task 3C")
 
