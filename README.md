@@ -15,7 +15,7 @@
     - ~~process the links along that route in order;~~
     - reserve link capacity and accumulate any waiting time;
     - sample link success/failure using the provided success probability; and
-    - stop after the first failed link or record successful completion.
+    - ~~stop after the first failed link or record successful completion.~~
 
   - link_df with
     - policy
