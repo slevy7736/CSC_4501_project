@@ -13,21 +13,21 @@
   - Complete the main simulation loop. For every request:
     - ~~select a route using the chosen policy;~~
     - ~~process the links along that route in order;~~
-    - reserve link capacity and accumulate any waiting time;
+    - ~~reserve link capacity and accumulate any waiting time~~
     - ~~sample link success/failure using the provided success probability~~
     - ~~stop after the first failed link or record successful completion.~~
 
   - link_df with
-    - policy
-    - link
-    - jobs
-    - utilization
+    - ~~policy~~
+    - ~~link~~
+    - ~~jobs~~
+    - ~~utilization~~
    
   - request_df with per-request results
     - ~~request success rate~~
     - ~~average end-to-end latency~~
     - ~~average waiting time~~
     - ~~average hop count~~
-    - throughput
+    - ~~throughput~~
     - per-link utilization
 - Task 6
