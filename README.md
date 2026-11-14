@@ -10,7 +10,6 @@
 - Task 4
   - base implementation done, needs testing
 - Task 5
-  - NOTE: haven't handled adding request hops and request wait times for requests that ultimately failed!
   - Complete the main simulation loop. For every request:
     - ~~select a route using the chosen policy;~~
     - ~~process the links along that route in order;~~
