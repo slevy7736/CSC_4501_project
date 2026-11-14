@@ -24,7 +24,7 @@
     - utilization
    
   - request_df with per-request results
-    - request success rate
+    ~~- request success rate~~
     - average end-to-end latency
     - average waiting time
     - average hop count
