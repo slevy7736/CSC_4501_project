@@ -27,7 +27,7 @@
     - ~~request success rate~~
     - average end-to-end latency
     - ~~average waiting time~~
-    - average hop count
+    - ~~average hop count~~
     - throughput
     - per-link utilization
 - Task 6
