@@ -87,7 +87,7 @@ def load_topology(path: str | Path) -> nx.Graph:
         )
 
     # validate success_prob (pe)
-    for u, v, pe in G.edges.data('pe'):
+    for u, v, pe in G.edges.data('pe'):                                             # https://networkx.org/documentation/stable/reference/introduction.html#graph-reporting
         if not(0 < pe and pe <= 1):
             print("invalid success probability:", pe, "for link", u, ",", v)
             print("valid probability values are between 0 and 1")
@@ -345,14 +345,25 @@ class LinkState:
     """
 
     def __init__(self, capacity: int):
-        self.capacity = capacity
+        self.capacity = capacity                                                # Each link has ce simultaneous service slots.
 
         # TODO 4A:
         # Create a min-heap with one 0.0 value per capacity slot.
+
         self.available_times = []
 
-        self.busy_time = 0.0
-        self.jobs = 0
+        i = 0
+        while i < capacity:                                                     # loop adds one 0.0 value per capacity slot
+            self.available_times.append(0.0)
+            i = i + 1
+
+        # Min-heaps are binary trees for which every parent node has a value less than or equal to any of its children.
+        # https://docs.python.org/3/library/heapq.html
+
+        heapq.heapify(self.available_times)                                     # Create a min-heap
+
+        self.busy_time = 0.0                                                    # total time link was in use
+        self.jobs = 0                                                           # total number of times link was used 
 
     def reserve(self, ready_ms: float, service_ms: float) -> Tuple[float, float]:
         """
@@ -363,6 +374,21 @@ class LinkState:
         """
         # TODO 4B:
         # Update the slot heap, busy_time, and jobs.
+
+        self.jobs = self.jobs + 1                                               # because we just accepted a job
+        self.busy_time = self.busy_time + service_ms                            # because we're keeping track of total time the link was in use
+
+        earliest_slot_free_time = heapq.heappop(self.available_times)           # because this job took the shortest time-until-available value
+
+        start_time = max(ready_ms, earliest_slot_free_time)                     # the job cannot start until the link available and the job is ready, so of the two, whichever time is longer will be the job's start time
+        finish_time = start_time + service_ms                                   # this job's finish time is it's start time + the time it takes to complete this job
+
+        heapq.heappush(self.available_times, finish_time)                       # theres one element per service slot
+        #                                                                       # add this jobs finish time to that array so when something comes looking for a service slot, it can accuratly choose the soonest one
+
+        reservation = (start_time, finish_time)
+
+        return reservation
         raise NotImplementedError("Complete Task 4B")
 
 
@@ -373,6 +399,19 @@ def canonical_edge(u: str, v: str) -> Tuple[str, str]:
 def make_link_states(g: nx.Graph) -> Dict[Tuple[str, str], LinkState]:
     """Create one LinkState object for each network link."""
     # TODO 4C
+
+    # for every edge in the graph get it's capacity so we can create a linkstate object
+    # for every link pair it with the subsequent linkstate object and store that pair in link_states
+
+    # canonical edge gives a single pair for every combination of two nodes that are attached to a link
+    # so we don't have two entries in link_states for a single link
+
+    linkstate_objects = {}
+
+    for u, v in g.edges:
+        linkstate_objects[canonical_edge(u, v)] = LinkState(g.edges[u, v]["capacity"])                      # edge lookup is G.edges[u, v] (https://networkx.org/documentation/stable/reference/introduction.html#graph-reporting)
+
+    return linkstate_objects
     raise NotImplementedError("Complete Task 4C")
 
 
@@ -404,13 +443,120 @@ def simulate(
     # TODO 5A:
     # Initialize random generator and link states.
 
+    generator = random.seed(seed)
+    
+    linkstate_objects = make_link_states(g)
+
     # TODO 5B:
     # Process requests in increasing arrival-time order.
+
+    # requests are generated in order of arrival time
+    # just to be safe, sort them in ascending order of arrival time anyway:
+    
+    # selection sort
+    for i in range(len(requests)):
+        for j in range(i + 1, len(requests)):
+            if requests[j].arrival_ms < requests[i].arrival_ms:
+                requests[i], requests[j] = requests[j], requests[i]
+
+    link_df = []
+
+    request_success = 0
+    request_failure = 0
+    
+    for request in requests:
+        # 1. choose a route;
+        path = choose_path(g, request.src, request.dst, policy, alpha, beta)            # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.dijkstra_path.html
+        #                                                                               # " list of nodes in a shortest path " 
+
+        wait = 0
+        ready_time = 0
+
+        link_success = 0
+        link_failure = 0
+
+        # 2. traverse links in path order;
+        i = 0
+
+        while i < (len(path) - 1):                                                      # if there are 4 nodes in the path, there are 3 links that connect the path
+            u = path[i]                                                                 # u is the current node
+            v = path[i + 1]                                                             # v is the next node in the path
+
+            link = linkstate_objects[canonical_edge(u, v)]                              # get the link state object associated with that link
+            
+            # 3. reserve link capacity;
+            
+            # reserve (link) method takes ready_ms and service_ms
+            # for the first link, ready_ms = arrival_ms, because the request is not currently traversing a previous link
+            # for subsequent links, ready_ms = when the request finishes traversing the previous link (finish_time, returned by calling .reserve() on a link)
+
+            # service_ms is the same as the value stored for the current link's "delay"
+
+            if i == 0:
+                ready_time = request.arrival_ms
+            service_ms = g.edges[u, v]["delay_ms"]
+                
+            start_time, finish_time = link.reserve(ready_time, service_ms)                # call the reserve method (returns start time and finish time) from linkstate class on that object
+
+            # 4. accumulate queue waiting time;
+            # the difference between the ready time and the traversal start time
+
+            wait = wait + (start_time - ready_time)                             # starts after it arrives, smaller values mean shorter waits
+
+            ready_time = finish_time
+
+            if random.random() <= g.edges[u, v]["success_prob"]:
+                # 5. sample link success/failure;
+                link_success = link_success + 1
+
+                # request succeeded if i == (len(path) - 2), meaning the last link in the path has been successfully traversed
+                if i == (len(path) - 2):
+                    request_success = request_success + 1
+
+                i = i + 1
+            else:
+                # 5. sample link success/failure;
+                link_failure = link_failure + 1
+
+                # since you stop after the first failed link, if a link fails the request has failed
+                request_failure = request_failure + 1
+
+                # 6. stop after the first failed link;
+                break
+
+        # for links that were actually attempted
+        success_rate = (link_success / (link_success + link_failure)) * 100
+        failure_rate = (link_failure / (link_success + link_failure)) * 100
+
+        print(
+            "for request" + str(request) + "\n"
+            + "success rate: " + str(success_rate) + "% \n"
+            + "failure rate: " + str(failure_rate) + "% \n"
+        )
+
+        link_df.append({
+            "policy": policy,
+            "link": link,
+            "jobs": link.jobs,
+            "utilization": link.busy_time
+        })
+    
+    link_results = pd.DataFrame(link_df)
 
     # TODO 5C:
     # Return:
     #   request_df with per-request results
     #   link_df with policy, link, jobs, utilization
+
+    #   request_df with per-request results
+    #           - request success rate
+    #           - average end-to-end latency
+    #           - average waiting time
+    #           - average hop count
+    #           - throughput
+    #           - per-link utilization
+
+    return link_results
     raise NotImplementedError("Complete Task 5")
 
 
