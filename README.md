@@ -11,8 +11,8 @@
   - base implementation done, needs testing
 - Task 5
   - Complete the main simulation loop. For every request:
-    ~~- select a route using the chosen policy;~~
-    ~~- process the links along that route in order;~~
+    - ~~select a route using the chosen policy;~~
+    - ~~process the links along that route in order;~~
     - reserve link capacity and accumulate any waiting time;
     - sample link success/failure using the provided success probability; and
     - stop after the first failed link or record successful completion.
@@ -24,7 +24,7 @@
     - utilization
    
   - request_df with per-request results
-    ~~- request success rate~~
+    - ~~request success rate~~
     - average end-to-end latency
     - average waiting time
     - average hop count
