@@ -164,8 +164,8 @@ def draw_topology(g: nx.Graph, output_path: str | Path) -> None:
 # draw_topology(graph, '../topology.png')
 
 # graph is not connected
-test_graph = load_topology('../data/topology_test.json')
-draw_topology(test_graph, '../topology_test.png')
+#test_graph = load_topology('../data/topology_test.json')
+#draw_topology(test_graph, '../topology_test.png')
 
 # ============================================================
 # TASK 2 — Generate network traffic [10 points]
@@ -459,104 +459,106 @@ def simulate(
             if requests[j].arrival_ms < requests[i].arrival_ms:
                 requests[i], requests[j] = requests[j], requests[i]
 
-    link_df = []
-
-    request_success = 0
-    request_failure = 0
+    # ========================================================================================================================================
+    request_results = []
+    link_results = []
+    # ========================================================================================================================================
     
     for request in requests:
-        # 1. choose a route;
-        path = choose_path(g, request.src, request.dst, policy, alpha, beta)            # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.dijkstra_path.html
-        #                                                                               # " list of nodes in a shortest path " 
+        request_success = 0                                                                 # if the request is successful, this will be changed to 1
+        request_arrival = request.arrival_ms                                                # get the value of the arrival time of the request
+    
+        request_wait = 0                                                                    # sum of waiting at each link = total wait time for this request
+        request_hops = 0
+        request_latency = None                                                              # latency is the time it takes for data to get from point A to point B, if the data makes it to point B this is changed to the difference between the finish time of the last hop and the arrival time
 
-        wait = 0
-        ready_time = 0
+        hop_finish_times = []                                                               # list of finish times for each hop in the request
+        last_successful_hop_finish = 0
 
-        link_success = 0
-        link_failure = 0
+        # ========================================================================================================================================
+        path = choose_path(g, request.src, request.dst, policy, alpha, beta)                # returns a list of nodes in the path
+        # ========================================================================================================================================
 
-        # 2. traverse links in path order;
-        i = 0
+        i = 1                                                                               # links in the path --> link i = 1 through link i = len(path) - 1
+        while i < len(path):                                                                # link i = len(path) - 1 will be the last iteration in the while loop
+            u = path[i -1]                                                                  # the start node for the current (local) hop
+            v = path[i]                                                                     # the desintain node for the current (local) hop
 
-        while i < (len(path) - 1):                                                      # if there are 4 nodes in the path, there are 3 links that connect the path
-            u = path[i]                                                                 # u is the current node
-            v = path[i + 1]                                                             # v is the next node in the path
+            link = linkstate_objects[canonical_edge(u, v)]                                  # so we can call reserve on the linkstate_object for this link and get the start time and finish time of this hop
 
-            link = linkstate_objects[canonical_edge(u, v)]                              # get the link state object associated with that link
-            
-            # 3. reserve link capacity;
-            
-            # reserve (link) method takes ready_ms and service_ms
-            # for the first link, ready_ms = arrival_ms, because the request is not currently traversing a previous link
-            # for subsequent links, ready_ms = when the request finishes traversing the previous link (finish_time, returned by calling .reserve() on a link)
-
-            # service_ms is the same as the value stored for the current link's "delay"
-
-            if i == 0:
-                ready_time = request.arrival_ms
+            # .reserve needs ready_ms and service_ms
+            #       - service_ms == value stored for this link's delay (de)
             service_ms = g.edges[u, v]["delay_ms"]
-                
-            start_time, finish_time = link.reserve(ready_time, service_ms)                # call the reserve method (returns start time and finish time) from linkstate class on that object
-
-            # 4. accumulate queue waiting time;
-            # the difference between the ready time and the traversal start time
-
-            wait = wait + (start_time - ready_time)                             # starts after it arrives, smaller values mean shorter waits
-
-            ready_time = finish_time
-
-            if random.random() <= g.edges[u, v]["success_prob"]:
-                # 5. sample link success/failure;
-                link_success = link_success + 1
-
-                # request succeeded if i == (len(path) - 2), meaning the last link in the path has been successfully traversed
-                if i == (len(path) - 2):
-                    request_success = request_success + 1
-
-                i = i + 1
+            #       - ready_ms depends on if there was a previous hop
+            #               - if there was a previous hop, ready_ms = finish_time of previous hop
+            #               - if there was no previous hop, ready_ms = arrival time of the request
+            if i == 1:
+                ready_ms = request.arrival_ms                                               # no previous hop
             else:
-                # 5. sample link success/failure;
-                link_failure = link_failure + 1
+                ready_ms = finish_time                                                      # there is a previous hop
+            
+            start_time, finish_time = link.reserve(ready_ms, service_ms)
+            hop_finish_times.append(finish_time)                                                # add the finish time to the list of finish times
 
-                # since you stop after the first failed link, if a link fails the request has failed
-                request_failure = request_failure + 1
+            # now the we know the ready time and the actual start time, we can calculate the time spent waiting by finding the difference between the two times
+            link_wait = start_time - ready_ms
+            # update the total time spend waiting for this request
+            request_wait = request_wait + link_wait
 
-                # 6. stop after the first failed link;
-                break
+            # ========================================================================================================================================
 
-        # for links that were actually attempted
-        success_rate = (link_success / (link_success + link_failure)) * 100
-        failure_rate = (link_failure / (link_success + link_failure)) * 100
+            # now that we know the ready time, time spent waiting, and the estimated finish time, actually attempt the hop
 
-        print(
-            "for request" + str(request) + "\n"
-            + "success rate: " + str(success_rate) + "% \n"
-            + "failure rate: " + str(failure_rate) + "% \n"
-        )
+            if random.random() <= g.edges[u, v]["success_prob"]:                            # if this condition is met the hop was successful
 
-        link_df.append({
+                request_hops = request_hops + 1                                             # increment the total number of successful hop counts for this request
+
+                if i == (len(path) - 1):                                                    # if the hop was successful and i == (len(path) - 1), we made the final hop in the path
+                    request_success = 1                                                     # meaning the whole request was successful
+                    last_successful_hop_finish = finish_time                                # the finish time of the last successful hop is this hop's finish time
+                    request_latency = finish_time - request_arrival                         # latency is the time it takes for data to get from point A to point B, if the request was successful then that means latency == last finish time (finish time for this iteration) - arrival time
+                
+                i = i + 1                                                                   # move to the next hop
+
+            else:                                                                           # if random.random() > g.edges[u, v]["success_prob"], the hop was not successful (the link is "failed")
+                last_successful_hop_finish = hop_finish_times[len(hop_finish_times) - 2]    # the finish time of the last successful hop was the previous hop (a successful hop)'s finish time
+                i = len(path)                                                               # ends the while loop, since we stop after the first failed link
+
+        # ========================================================================================================================================
+        request_results.append({
+            "policy": policy,
+            "success": request_success,                                                     # if this request succeeded
+            "arrival": request_arrival,                                                     # the arrival time of this request
+            "last_successful_finish": last_successful_hop_finish,                           # the finish time of the last successful hop for this request
+            "total_wait_time": request_wait,                                                # total time spend waiting for this request
+            "hop_count": request_hops,                                                      # number of successful hops for this request
+            "latency": request_latency
+        })
+
+    # ========================================================================================================================================
+
+    # once all the requests are done, create link_df which stores stats per-link
+
+    for link in linkstate_objects:
+        linkstate_obj = linkstate_objects[link]
+
+        link_results.append({
             "policy": policy,
             "link": link,
-            "jobs": link.jobs,
-            "utilization": link.busy_time
+            "jobs": linkstate_obj.jobs,
+            "utilization": linkstate_obj.busy_time
         })
-    
-    link_results = pd.DataFrame(link_df)
 
     # TODO 5C:
     # Return:
     #   request_df with per-request results
     #   link_df with policy, link, jobs, utilization
 
-    #   request_df with per-request results
-    #           - request success rate
-    #           - average end-to-end latency
-    #           - average waiting time
-    #           - average hop count
-    #           - throughput
-    #           - per-link utilization
+    request_df = pd.DataFrame(request_results)
+    link_df = pd.DataFrame(link_results)
 
-    return link_results
+    return (request_df,link_df)
+
     raise NotImplementedError("Complete Task 5")
 
 
@@ -571,6 +573,43 @@ def summarize(request_df: pd.DataFrame, offered_load: float) -> dict:
       avg_hops
       throughput_req_per_s
     """
+    # =============================================================================
+    request_summary = []
+
+    policy = request_df["policy"].iloc[0]                                                                           # all requests in a single simulation use the same policy
+    num_successful_requests = request_df["success"].agg("sum")                                                      # success = 1 if successful, so sum on the success column = num of successful requests
+
+    # ============================ SUCCESS RATE ===================================
+    num_requests = request_df["success"].agg("count")                                                               # counts number of rows in request_df, which == number of requests
+    request_success_rate = (num_successful_requests / num_requests) * 100
+
+    # ============================ AVG LATENCY ====================================
+    avg_latency = request_df["latency"].agg("mean")
+
+    # ============================ AVG WAIT TIME ==================================
+    avg_wait_time = request_df["total_wait_time"].agg("mean")
+
+    # ============================ AVG HOPS =======================================
+    avg_hops = request_df["hop_count"].agg("mean")
+
+    # ============================ THROUGHPUT =====================================
+    simulation_time = request_df["last_successful_finish"].agg("max") - request_df["arrival"].agg("min")            # simulation time = (max last-successful-hop's finish time) - (min arrival time)
+    throughput = num_successful_requests / simulation_time
+
+    # =============================================================================
+    request_summary.append({
+        "policy": policy,
+        "offered_load": offered_load,
+        "success_rate": request_success_rate,
+        "avg_latency_ms": avg_latency,
+        "avg_waiting_ms": avg_wait_time,
+        "avg_hops": avg_hops,
+        "throughput_req_per_s": throughput
+    })
+
+    return request_summary
+    # =============================================================================
+
     # TODO 5D
     raise NotImplementedError("Complete Task 5D")
 
@@ -599,6 +638,22 @@ def run_experiments(
     At one offered-load value, ALL policies must receive the SAME
     generated request trace for a fair comparison.
     """
+
+    loads = [0.02, 0.05, 0.10, 0.15]
+    policies = ["shortest_hop", "min_latency", "max_reliability", "student_policy"]
+
+    global_summary = []
+
+    for load in loads:
+        requests = generate_requests(g, n_requests, load, seed)
+        for request in requests:
+            for policy in policies:
+                request_df, link_df = simulate(g, request, policy)
+                request_summary = summarize(request_df, load)
+
+                # for row in request summary add it to global_summary (csv containing all summaries), that will become per-request csv
+                # for row in link df, add it to global_link (csv containg all info from every link_df, that will become per-link csv)
+
     # TODO 6A:
     # - Generate one request trace per load.
     # - Run all four policies on the same trace.
