@@ -244,9 +244,10 @@ def edge_weight(
         Your own policy using at least TWO link properties.
         Explain the formula and parameters in your report.
     """
-    delay = attrs["delay_ms"]
-    p = attrs["success_prob"]
-    capacity = attrs["capacity"]
+
+    delay = attrs["de"]                                 # delay = attrs["delay_ms"]
+    p = attrs["pe"]                                     # p = attrs["success_prob"]
+    capacity = attrs["ce"]                              # capacity = attrs["capacity"]
 
     if policy == "shortest_hop":
         # TODO 3A
@@ -295,6 +296,7 @@ def edge_weight(
 
         # higher capacities --> lower quotients for (1/capacity)
         # higher delays --> contribute more to (delay + (1/capacity)) 
+
         return delay + (1/capacity)
 
         # for this policy we expect more losses than other policies,
@@ -409,7 +411,7 @@ def make_link_states(g: nx.Graph) -> Dict[Tuple[str, str], LinkState]:
     linkstate_objects = {}
 
     for u, v in g.edges:
-        linkstate_objects[canonical_edge(u, v)] = LinkState(g.edges[u, v]["capacity"])                      # edge lookup is G.edges[u, v] (https://networkx.org/documentation/stable/reference/introduction.html#graph-reporting)
+        linkstate_objects[canonical_edge(u, v)] = LinkState(g.edges[u, v]["ce"])                                # edge lookup is G.edges[u, v] (https://networkx.org/documentation/stable/reference/introduction.html#graph-reporting)
 
     return linkstate_objects
     raise NotImplementedError("Complete Task 4C")
@@ -443,8 +445,7 @@ def simulate(
     # TODO 5A:
     # Initialize random generator and link states.
 
-    generator = random.seed(seed)
-    
+    generator = random.Random(seed)
     linkstate_objects = make_link_states(g)
 
     # TODO 5B:
@@ -467,6 +468,9 @@ def simulate(
     for request in requests:
         request_success = 0                                                                 # if the request is successful, this will be changed to 1
         request_arrival = request.arrival_ms                                                # get the value of the arrival time of the request
+        request_id = request.request_id
+        request_src = request.src
+        request_dst = request.dst
     
         request_wait = 0                                                                    # sum of waiting at each link = total wait time for this request
         request_hops = 0
@@ -488,7 +492,7 @@ def simulate(
 
             # .reserve needs ready_ms and service_ms
             #       - service_ms == value stored for this link's delay (de)
-            service_ms = g.edges[u, v]["delay_ms"]
+            service_ms = g.edges[u, v]["de"]
             #       - ready_ms depends on if there was a previous hop
             #               - if there was a previous hop, ready_ms = finish_time of previous hop
             #               - if there was no previous hop, ready_ms = arrival time of the request
@@ -509,7 +513,7 @@ def simulate(
 
             # now that we know the ready time, time spent waiting, and the estimated finish time, actually attempt the hop
 
-            if random.random() <= g.edges[u, v]["success_prob"]:                            # if this condition is met the hop was successful
+            if generator.random() <= g.edges[u, v]["pe"]:                                   # if this condition is met the hop was successful
 
                 request_hops = request_hops + 1                                             # increment the total number of successful hop counts for this request
 
@@ -526,13 +530,17 @@ def simulate(
 
         # ========================================================================================================================================
         request_results.append({
+            "request_id": request_id,
             "policy": policy,
-            "success": request_success,                                                     # if this request succeeded
-            "arrival": request_arrival,                                                     # the arrival time of this request
-            "last_successful_finish": last_successful_hop_finish,                           # the finish time of the last successful hop for this request
-            "total_wait_time": request_wait,                                                # total time spend waiting for this request
+            "src": request_src,
+            "dst": request_dst,
+            "arrival_ms": request_arrival,                                                  # the arrival time of this request
+            "finish_ms": last_successful_hop_finish,                                        # the finish time of the last successful hop for this request
+            "latency_ms": request_latency,
+            "waiting_ms": request_wait,                                                     # total time spend waiting for this request
             "hop_count": request_hops,                                                      # number of successful hops for this request
-            "latency": request_latency
+            "success": request_success,                                                     # if this request succeeded
+            "path": path
         })
 
     # ========================================================================================================================================
@@ -584,17 +592,17 @@ def summarize(request_df: pd.DataFrame, offered_load: float) -> dict:
     request_success_rate = (num_successful_requests / num_requests) * 100
 
     # ============================ AVG LATENCY ====================================
-    avg_latency = request_df["latency"].agg("mean")
+    avg_latency = request_df["latency_ms"].agg("mean")
 
     # ============================ AVG WAIT TIME ==================================
-    avg_wait_time = request_df["total_wait_time"].agg("mean")
+    avg_wait_time = request_df["waiting_ms"].agg("mean")
 
     # ============================ AVG HOPS =======================================
     avg_hops = request_df["hop_count"].agg("mean")
 
     # ============================ THROUGHPUT =====================================
-    simulation_time = request_df["last_successful_finish"].agg("max") - request_df["arrival"].agg("min")            # simulation time = (max last-successful-hop's finish time) - (min arrival time)
-    throughput = num_successful_requests / simulation_time
+    simulation_time = request_df["finish_ms"].agg("max") - request_df["arrival_ms"].agg("min")            # simulation time = (max last-successful-hop's finish time) - (min arrival time)
+    throughput = (num_successful_requests / simulation_time) * 1000                                       # simulation time is in ms, to get requests per second multiply by 1000
 
     # =============================================================================
     request_summary.append({
@@ -639,20 +647,46 @@ def run_experiments(
     generated request trace for a fair comparison.
     """
 
+    # ===================================================================================================
+
+    generator = random.Random(seed)
+
     loads = [0.02, 0.05, 0.10, 0.15]
     policies = ["shortest_hop", "min_latency", "max_reliability", "student_policy"]
 
     global_summary = []
+    global_link = []
+
+    # ===================================================================================================
 
     for load in loads:
-        requests = generate_requests(g, n_requests, load, seed)
-        for request in requests:
-            for policy in policies:
-                request_df, link_df = simulate(g, request, policy)
-                request_summary = summarize(request_df, load)
+        requests = generate_requests(g, n_requests, load, generator)
 
-                # for row in request summary add it to global_summary (csv containing all summaries), that will become per-request csv
-                # for row in link df, add it to global_link (csv containg all info from every link_df, that will become per-link csv)
+        for policy in policies:
+            request_df, link_df = simulate(g, requests, policy, seed)
+
+            request_summary = summarize(request_df, load)
+            df_request_summary = pd.DataFrame(request_summary)
+
+            # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.itertuples.html#pandas-dataframe-itertuples
+
+            for row in df_request_summary.itertuples():
+                global_summary.append(row)
+
+            for row in link_df.itertuples():
+                global_link.append(row)
+
+    # ===================================================================================================
+
+    global_summary = pd.DataFrame(global_summary)
+    global_link = pd.DataFrame(global_link)
+
+    # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html#pandas-dataframe-to-csv
+    
+    global_link.to_csv(output_dir / "links.csv")
+    global_summary.to_csv(output_dir / "summary.csv")
+
+    return global_summary
 
     # TODO 6A:
     # - Generate one request trace per load.
@@ -708,6 +742,13 @@ def make_plots(summary_df: pd.DataFrame, output_dir: Path) -> None:
     """
     # TODO 6B:
     # Call plot_metric(...) for all four required metrics.
+
+    plot_metric(summary_df, "success_rate", "Success Rate", output_dir / "success_rate_v_offered_load.png")
+    plot_metric(summary_df, "avg_latency_ms", "Average Latency (ms)", output_dir / "avg_latency_v_offered_load.png")
+    plot_metric(summary_df, "throughput_req_per_s", "Throughput (requests/s)", output_dir / "throughput_v_offered_load.png")
+    plot_metric(summary_df, "avg_waiting_ms", "Average Waiting Time (ms)", output_dir / "avg_waiting_v_offered_load.png")
+
+    return None
     raise NotImplementedError("Complete Task 6B")
 
 
