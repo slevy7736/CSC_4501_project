@@ -476,8 +476,8 @@ def simulate(
         request_hops = 0
         request_latency = None                                                              # latency is the time it takes for data to get from point A to point B, if the data makes it to point B this is changed to the difference between the finish time of the last hop and the arrival time
 
-        hop_finish_times = []                                                               # list of finish times for each hop in the request
-        last_successful_hop_finish = 0
+        #hop_finish_times = []                                                               # list of finish times for each hop in the request
+        hop_finish = 0
 
         # ========================================================================================================================================
         path = choose_path(g, request.src, request.dst, policy, alpha, beta)                # returns a list of nodes in the path
@@ -502,7 +502,8 @@ def simulate(
                 ready_ms = finish_time                                                      # there is a previous hop
             
             start_time, finish_time = link.reserve(ready_ms, service_ms)
-            hop_finish_times.append(finish_time)                                                # add the finish time to the list of finish times
+            #hop_finish_times.append(finish_time)                                                # add the finish time to the list of finish times
+            hop_finish = finish_time
 
             # now the we know the ready time and the actual start time, we can calculate the time spent waiting by finding the difference between the two times
             link_wait = start_time - ready_ms
@@ -519,13 +520,13 @@ def simulate(
 
                 if i == (len(path) - 1):                                                    # if the hop was successful and i == (len(path) - 1), we made the final hop in the path
                     request_success = 1                                                     # meaning the whole request was successful
-                    last_successful_hop_finish = finish_time                                # the finish time of the last successful hop is this hop's finish time
+                    #last_successful_hop_finish = finish_time                                # the finish time of the last successful hop is this hop's finish time
                     request_latency = finish_time - request_arrival                         # latency is the time it takes for data to get from point A to point B, if the request was successful then that means latency == last finish time (finish time for this iteration) - arrival time
                 
                 i = i + 1                                                                   # move to the next hop
 
             else:                                                                           # if random.random() > g.edges[u, v]["success_prob"], the hop was not successful (the link is "failed")
-                last_successful_hop_finish = hop_finish_times[len(hop_finish_times) - 2]    # the finish time of the last successful hop was the previous hop (a successful hop)'s finish time
+                #last_successful_hop_finish = hop_finish_times[len(hop_finish_times) - 2]    # the finish time of the last successful hop was the previous hop (a successful hop)'s finish time
                 i = len(path)                                                               # ends the while loop, since we stop after the first failed link
 
         # ========================================================================================================================================
@@ -535,7 +536,7 @@ def simulate(
             "src": request_src,
             "dst": request_dst,
             "arrival_ms": request_arrival,                                                  # the arrival time of this request
-            "finish_ms": last_successful_hop_finish,                                        # the finish time of the last successful hop for this request
+            "finish_ms": hop_finish,                                                        # formerly the finish time of the last successful hop for this request, now the finish time of the last attempted hop (regardless if it was successful or a failure)
             "latency_ms": request_latency,
             "waiting_ms": request_wait,                                                     # total time spend waiting for this request
             "hop_count": request_hops,                                                      # number of successful hops for this request
