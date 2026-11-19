@@ -3,8 +3,8 @@
     - In edge_weight(), min_latency and student_policy currently select identical paths for the provided topology, resulting in overlapping performance curves. The min_latency implementation is correct. Consider using different markers and plotting styles in plot_metric() to make both curves visible. You may also examine whether your custom policy meaningfully differs from minimum-latency routing.
 - ~~Failed request timing:~~
     - ~~In simulate(), the failed-link condition may record the previous successful hop's finish time rather than the actual failure time. Use the current link's finish_time to ensure finish_ms reflects when the request terminates.~~
-- Link utilization:
-    - In simulate(), link_results currently stores busy_time as utilization. Since utilization represents the fraction of available capacity used, calculate it as busy_time / (capacity * simulation_duration).
+- ~~Link utilization:~~
+    - ~~In simulate(), link_results currently stores busy_time as utilization. Since utilization represents the fraction of available capacity used, calculate it as busy_time / (capacity * simulation_duration).~~
 - Missing per-request results:
     - In run_experiments(), only summary and link results are saved. Collect and export request_df across all experiments, including the corresponding offered load and routing policy.
 - Summary output:
