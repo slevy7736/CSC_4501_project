@@ -1,6 +1,6 @@
 # TODO
 ## 1. Missing min_latency curve:
-    - In edge_weight(), min_latency and student_policy currently select identical paths for the provided topology, resulting in overlapping performance curves. The min_latency implementation is correct. Consider using different markers and plotting styles in plot_metric() to make both curves visible. You may also examine whether your custom policy meaningfully differs from minimum-latency routing.
+- In edge_weight(), min_latency and student_policy currently select identical paths for the provided topology, resulting in overlapping performance curves. The min_latency implementation is correct. Consider using different markers and plotting styles in plot_metric() to make both curves visible. You may also examine whether your custom policy meaningfully differs from minimum-latency routing.
 
 # CSC 4501 — QuantumNet Course Project
 
