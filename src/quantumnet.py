@@ -546,6 +546,12 @@ def simulate(
 
     # ========================================================================================================================================
 
+    request_df = pd.DataFrame(request_results)
+
+    simulation_time = request_df["finish_ms"].agg("max") - request_df["arrival_ms"].agg("min")
+
+    # ========================================================================================================================================
+
     # once all the requests are done, create link_df which stores stats per-link
 
     for link in linkstate_objects:
@@ -555,16 +561,20 @@ def simulate(
             "policy": policy,
             "link": link,
             "jobs": linkstate_obj.jobs,
-            "utilization": linkstate_obj.busy_time
+            "utilization": (linkstate_obj.busy_time / (linkstate_obj.capacity * simulation_time))
         })
+
+    link_df = pd.DataFrame(link_results)
+
+    # ========================================================================================================================================
 
     # TODO 5C:
     # Return:
     #   request_df with per-request results
     #   link_df with policy, link, jobs, utilization
 
-    request_df = pd.DataFrame(request_results)
-    link_df = pd.DataFrame(link_results)
+    #request_df = pd.DataFrame(request_results)
+    #link_df = pd.DataFrame(link_results)
 
     return (request_df,link_df)
 
