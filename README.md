@@ -7,8 +7,8 @@
     - ~~In simulate(), link_results currently stores busy_time as utilization. Since utilization represents the fraction of available capacity used, calculate it as busy_time / (capacity * simulation_duration).~~
 - ~~Missing per-request results:~~
     - ~~In run_experiments(), only summary and link results are saved. Collect and export request_df across all experiments, including the corresponding offered load and routing policy.~~
-- Summary output:
-    - In summarize(), the function currently returns a list containing a dictionary. Return the dictionary directly and update run_experiments() to append that dictionary to global_summary.
+- ~~Summary output:~~
+    - ~~In summarize(), the function currently returns a list containing a dictionary. Return the dictionary directly and update run_experiments() to append that dictionary to global_summary.~~
 
 ________________________________________________________________________________________________________________________________________________
 # CSC 4501 — QuantumNet Course Project
