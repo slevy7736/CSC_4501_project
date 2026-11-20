@@ -591,7 +591,6 @@ def summarize(request_df: pd.DataFrame, offered_load: float) -> dict:
       throughput_req_per_s
     """
     # =============================================================================
-    request_summary = []
 
     policy = request_df["policy"].iloc[0]                                                                           # all requests in a single simulation use the same policy
     num_successful_requests = request_df["success"].agg("sum")                                                      # success = 1 if successful, so sum on the success column = num of successful requests
@@ -614,7 +613,8 @@ def summarize(request_df: pd.DataFrame, offered_load: float) -> dict:
     throughput = (num_successful_requests / simulation_time) * 1000                                       # simulation time is in ms, to get requests per second multiply by 1000
 
     # =============================================================================
-    request_summary.append({
+    
+    return {
         "policy": policy,
         "offered_load": offered_load,
         "success_rate": request_success_rate,
@@ -622,14 +622,12 @@ def summarize(request_df: pd.DataFrame, offered_load: float) -> dict:
         "avg_waiting_ms": avg_wait_time,
         "avg_hops": avg_hops,
         "throughput_req_per_s": throughput
-    })
+    }
 
-    return request_summary
     # =============================================================================
 
     # TODO 5D
     raise NotImplementedError("Complete Task 5D")
-
 
 # ============================================================
 # TASK 6 — Experimental evaluation and report [15 points]
@@ -678,12 +676,9 @@ def run_experiments(
             request_summary = summarize(request_df, load)                       # pass load to summarize so it can calculate request statistics
             request_df["offered_load"] = load                                   # add "load" as a column in request_df so we know what the load was for a request
 
-            df_request_summary = pd.DataFrame(request_summary)                  # change the summary to a datafram so we can iterate through rows
+            global_summary.append(request_summary)                              # request summary is a disctionary returned by summarize, append that dictionary directly to global summary
 
             # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.itertuples.html#pandas-dataframe-itertuples
-
-            for row in df_request_summary.itertuples():
-                global_summary.append(row)
 
             for row in link_df.itertuples():
                 global_link.append(row)
