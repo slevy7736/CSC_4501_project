@@ -290,18 +290,16 @@ def edge_weight(
         # TODO 3D
         # Use at least TWO of: delay, p, capacity.
 
-        # if there's high capacity and low delay,
-        # we can send a lot of data with minimal delay
-        # and brute force our way through low success probability
+        # we haven't tested capacity yet, so we include that in student policy for observation
+        # since we can't retransmit, reliability is the second most important thing
+
+        # by trading off a little reliability for capacity, we can improve performance of
+        # max reliabilty while still having favorable success rates
 
         # higher capacities --> lower quotients for (1/capacity)
         # higher delays --> contribute more to (delay + (1/capacity)) 
 
-        return delay + (1/capacity)
-
-        # for this policy we expect more losses than other policies,
-        # but for successful tranmissions, faster delivery
-        # of the *entire* payload, not just one segment
+        return 1/capacity + (-math.log(p) * 0.75)
  
         raise NotImplementedError("Complete Task 3D")
 
