@@ -667,6 +667,7 @@ def run_experiments(
 
     global_summary = []
     global_link = []
+    global_requests = []
 
     # ===================================================================================================
 
@@ -676,8 +677,10 @@ def run_experiments(
         for policy in policies:
             request_df, link_df = simulate(g, requests, policy, seed)
 
-            request_summary = summarize(request_df, load)
-            df_request_summary = pd.DataFrame(request_summary)
+            request_summary = summarize(request_df, load)                       # pass load to summarize so it can calculate request statistics
+            request_df["offered_load"] = load                                   # add "load" as a column in request_df so we know what the load was for a request
+
+            df_request_summary = pd.DataFrame(request_summary)                  # change the summary to a datafram so we can iterate through rows
 
             # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.itertuples.html#pandas-dataframe-itertuples
 
@@ -687,15 +690,20 @@ def run_experiments(
             for row in link_df.itertuples():
                 global_link.append(row)
 
+            for row in request_df.itertuples():
+                global_requests.append(row)
+
     # ===================================================================================================
 
     global_summary = pd.DataFrame(global_summary)
     global_link = pd.DataFrame(global_link)
-
+    global_requests = pd.DataFrame(global_requests)
+    
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_csv.html#pandas-dataframe-to-csv
     
     global_link.to_csv(output_dir / "links.csv")
     global_summary.to_csv(output_dir / "summary.csv")
+    global_requests.to_csv(output_dir / "requests.csv")
 
     return global_summary
 
